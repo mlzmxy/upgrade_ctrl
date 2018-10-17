@@ -48,10 +48,10 @@ bool UpgradeProc::Process()
     Addr addr_end = hex_parsing->GetEndAddr();  //结束长度
     unsigned int addr_len = hex_parsing->GetAddrLength();
     Addr addr = addr_origin;  //数据地址
-    Flow upgrade_flow = handshake;
+    Flow upgrade_flow = receiveWait;
     Flow check_flow = handshake;
     m_error_code = 0;
-    int handshake_flag = 0;  //握手成功标志
+    //int handshake_flag = 0;  //握手成功标志
 
     int progress_value = 0;  //进度值
     int sum_datablock = addr_len / this->m_datablock_size;
@@ -83,10 +83,14 @@ bool UpgradeProc::Process()
         switch (upgrade_flow) {
         case handshake:
             //发送握手指令
-            if(0 == handshake_flag) {
+            //if(0 == handshake_flag) {
                 if(CanSendCmdData(handshake)) {
+                    upgrade_flow = receiveWait;  //被动式握手
+                } else {
+                    message->Cout("CAN发送失败");
+                    return false;
                 }
-            }
+            //}
             check_flow = handshake;
             break;
         case unlockCSM:
@@ -231,13 +235,13 @@ bool UpgradeProc::Process()
             case handshake:
                 if(check_flow == handshake) {
                     if(0x55 == m_can_data.at(1)) {
-                        handshake_flag = 1;
+                        //handshake_flag = 1;
+                        upgrade_flow = unlockCSM;
                         message->Cout("  进入升级程序");
                     } else {
-                        message->Cout("  握手命令回复失败");
-                        return false;
+                        upgrade_flow = handshake;
+                        //message->Cout("  握手命令回复失败");
                     }
-                    upgrade_flow = unlockCSM;
                 }
                 break;
             case unlockCSM:
@@ -272,10 +276,10 @@ bool UpgradeProc::Process()
             case erase:
                 if(check_flow == erase) {
                     if(0x55 == m_can_data.at(1)) {
-                        message->Cout("  Flash擦除成功");
+                        message->Cout("  Flash CDE擦除成功");
                         message->ProgressValue(++progress_value);
                     } else {
-                        message->Cout("  Flash擦除失败");
+                        message->Cout("  Flash CDE擦除失败");
                         return false;
                     }
                     upgrade_flow = dataBlockInfo;
