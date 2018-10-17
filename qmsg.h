@@ -9,6 +9,7 @@ public:
     QMsg();
 
     virtual void Cout(string msg);
+    virtual void ProgressValue(int progress_value);
 
 };
 
