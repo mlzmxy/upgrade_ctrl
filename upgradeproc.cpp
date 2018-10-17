@@ -53,9 +53,9 @@ bool UpgradeProc::Process()
     m_error_code = 0;
     int handshake_flag = 0;  //握手成功标志
 
-    int progress_value = 1;  //进度值
+    int progress_value = 0;  //进度值
     int sum_datablock = addr_len / this->m_datablock_size;
-    int progress_added = 100 / (sum_datablock + 8);  //进度增加值
+    int progress_added = 100 / sum_datablock;  //进度增加值
 
     /*
      *  1. 解析Hex文件
@@ -99,16 +99,6 @@ bool UpgradeProc::Process()
             }
             message->Cout("等待CSM解锁-->");
             check_flow = unlockCSM;
-            upgrade_flow = receiveWait;
-            break;
-        case toggle:
-            //发送toggle指令
-            if(!CanSendCmdData(toggle)) {
-                message->Cout("CAN发送失败");
-                return false;
-            }
-            message->Cout("等待toggle测试-->");
-            check_flow = toggle;
             upgrade_flow = receiveWait;
             break;
         case version:
@@ -243,8 +233,6 @@ bool UpgradeProc::Process()
                     if(0x55 == m_can_data.at(1)) {
                         handshake_flag = 1;
                         message->Cout("  进入升级程序");
-                        progress_value += progress_added;
-                        message->ProgressValue(progress_value);
                     } else {
                         message->Cout("  握手命令回复失败");
                         return false;
@@ -256,31 +244,13 @@ bool UpgradeProc::Process()
                 if(check_flow == unlockCSM) {
                     if(0x55 == m_can_data.at(1)) {
                         message->Cout("  CSM解锁成功");
-                        progress_value += progress_added;
-                        message->ProgressValue(progress_value);
                     } else {
                         message->Cout("  CSM解锁失败");
                         return false;
                     }
-                    upgrade_flow = toggle;
-                } else {
-                    message->Cout("  解锁CSM命令回复错位" + std::to_string(check_flow));
-                    return false;
-                }
-                break;
-            case toggle:
-                if(check_flow == toggle) {
-                    if(0x55 == m_can_data.at(1)) {
-                        message->Cout("  Toggle测试成功");
-                        progress_value += progress_added;
-                        message->ProgressValue(progress_value);
-                    } else {
-                        message->Cout("  Toggle测试失败");
-                        return false;
-                    }
                     upgrade_flow = version;
                 } else {
-                    message->Cout("  Toggle测试命令回复错位" + std::to_string(check_flow));
+                    message->Cout("  解锁CSM命令回复错位" + std::to_string(check_flow));
                     return false;
                 }
                 break;
@@ -288,8 +258,6 @@ bool UpgradeProc::Process()
                 if(check_flow == version) {
                     if(0x210 == (m_can_data.at(1) + (m_can_data.at(2) << 8))) {
                         message->Cout("  DSP Flash API版本正确: 0x210");
-                        progress_value += progress_added;
-                        message->ProgressValue(progress_value);
                     } else {
                         message->Cout("  DSP Flash API版本错误: " +
                                  std::to_string(m_can_data.at(1) + (m_can_data.at(2) << 8)));
@@ -305,8 +273,7 @@ bool UpgradeProc::Process()
                 if(check_flow == erase) {
                     if(0x55 == m_can_data.at(1)) {
                         message->Cout("  Flash擦除成功");
-                        progress_value += progress_added;
-                        message->ProgressValue(progress_value);
+                        message->ProgressValue(++progress_value);
                     } else {
                         message->Cout("  Flash擦除失败");
                         return false;
@@ -364,9 +331,9 @@ bool UpgradeProc::Process()
             case program:
                 if(check_flow == program) {
                     if(0x55 == m_can_data.at(1)) {
-                        message->Cout("  烧写成功");
+                        message->Cout("  Flash烧写成功");
                     } else {
-                        message->Cout("  烧写失败");
+                        message->Cout("  Flash烧写失败");
                         return false;
                     }
                     upgrade_flow = verify;
