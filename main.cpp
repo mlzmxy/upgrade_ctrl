@@ -8,13 +8,18 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    UpgradeProc proc(new QMsg, 0x800);
-    proc.SetHexParseSettings("F:/Workspace/Workspace_Qt/TestOfFlashUpdateA.hex", 0x318000, 0x18000);
-    if(proc.Process()) {
-        qDebug() << "升级成功";
-    } else {
-        qDebug() << "升级失败";
+    UpgradeProc proc(new QMsg, UpgradeProc::LocalProgram, 0x800);
+    if(proc.ParseHexFile("F:/Workspace/Workspace_Qt/FlashUpdate-Can-3s.hex", 0x338000, 0x8000)){
+        if(proc.InitCAN()) {
+            proc.WaitForUpgrade();
+            if(proc.Process()) {
+                qDebug() << "升级成功";
+            } else {
+                qDebug() << "升级失败";
+            }
+        }
     }
+
 
     return a.exec();
 }
